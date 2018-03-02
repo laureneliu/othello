@@ -178,3 +178,8 @@ void Board::setBoard(char data[]) {
         }
     }
 }
+
+int Board::naiveScore(Side side)
+{
+    return count(side) - count((side == BLACK) ? WHITE : BLACK);
+}
