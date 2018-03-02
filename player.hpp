@@ -6,6 +6,7 @@
 #include "board.hpp"
 using namespace std;
 
+
 class Player {
 
 public:
