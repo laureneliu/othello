@@ -30,6 +30,7 @@ public:
     int countBlack();
     int countWhite();
     int naiveScore(Side side);
+    void print();
 
     void setBoard(char data[]);
 };

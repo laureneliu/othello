@@ -9,14 +9,17 @@ class Move {
    
 public:
     int x, y;
-    int flipped[8];
+    int *flipped;
     int num_flipped;
     Move(int x, int y) {
         this->x = x;
         this->y = y;
         this->num_flipped = 0;
+        this->flipped = new int[100];
     }
-    ~Move() {}
+    ~Move() {
+        delete[] flipped;
+    }
 
     int getX() { return x; }
     int getY() { return y; }

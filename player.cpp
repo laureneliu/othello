@@ -47,11 +47,13 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
      * TODO: Implement how moves your AI should play here. You should first
      * process the opponent's opponents move before calculating your own move
      */
+     return doNaiveMove(opponentsMove);
     
-}
+} 
 
 Move *Player::doNaiveMove(Move *opponentsMove) {
     board.doMove(opponentsMove, (side == BLACK) ? WHITE : BLACK);
+    std::cerr << "we did the opps move" << std::endl;
     Move *possible;
     Move *temp;
     int possible_score;
@@ -61,12 +63,22 @@ Move *Player::doNaiveMove(Move *opponentsMove) {
     {
         for (int j = 0; j < BOARDSIZE; ++j)
         {
+            std::cerr << -1;
             possible = new Move(i, j);
+            std::cerr << 0;
             if (board.checkMove(possible, side))
             {
+                std::cerr << possible->getX() << ", " << possible->getY() << std::endl;
+                // board.print(); 
+                std::cerr << 1;
                 board.doMove(possible, side);
+                // board.print();
+                std::cerr << 2;
                 possible_score = board.naiveScore(side);
+                std::cerr << 3;
                 board.undoMove(possible);
+                std::cerr << 4;
+                // board.print();
                 if (best == nullptr)
                 {
                     best = possible;
@@ -84,8 +96,13 @@ Move *Player::doNaiveMove(Move *opponentsMove) {
                     delete possible;
                 }
             }
+            else
+            {
+                delete possible;
+            }
         }
     }
     board.doMove(best, side);
+    board.print();
     return best;
 }

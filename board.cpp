@@ -134,7 +134,7 @@ void Board::doMove(Move *m, Side side) {
                 while (onBoard(x, y) && get(other, x, y)) {
                     set(side, x, y);
                     m->flipped[m->num_flipped] = x + 8 * y;
-                    ++(m->num_flipped);
+                    m->num_flipped += 1;
                     x += dx;
                     y += dy;
                 }
@@ -149,6 +149,7 @@ void Board::undoMove(Move *m) {
     black.set(m->getX() + m->getY() * 8, 0);
     for (int i = 0; i < m->num_flipped; ++i) {
         black.flip(m->flipped[i]);
+        // std::cerr << m->flipped[i] % 8 << ", " << m->flipped[i] / 8 << std::endl;
     }
 }
 
@@ -193,4 +194,22 @@ void Board::setBoard(char data[]) {
 int Board::naiveScore(Side side)
 {
     return count(side) - count((side == BLACK) ? WHITE : BLACK);
+}
+
+void Board::print()
+{
+    std::cerr << std::endl;
+    for (int i = 0; i < 8; ++i)
+    {
+        for (int j = 0; j < 8; ++j)
+        {
+            if (get(BLACK, j, i))
+                std::cerr << 'b';
+            else if (get(WHITE, j, i))
+                std::cerr << 'w';
+            else
+                std::cerr << '_';
+        }
+        std::cerr << std::endl;
+    }
 }
