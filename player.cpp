@@ -53,7 +53,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 
 Move *Player::doNaiveMove(Move *opponentsMove) {
     board.doMove(opponentsMove, (side == BLACK) ? WHITE : BLACK);
-    std::cerr << "we did the opps move" << std::endl;
+    //std::cerr << "we did the opps move" << std::endl;
     Move *possible;
     Move *temp;
     int possible_score;
@@ -63,21 +63,21 @@ Move *Player::doNaiveMove(Move *opponentsMove) {
     {
         for (int j = 0; j < BOARDSIZE; ++j)
         {
-            std::cerr << -1 << std::endl;
+            //std::cerr << -1 << std::endl;
             possible = new Move(i, j);
-            std::cerr << 0 << std::endl;
+            //std::cerr << 0 << std::endl;
             if (board.checkMove(possible, side))
             {
-                std::cerr << possible->getX() << ", " << possible->getY() << std::endl;
+                //std::cerr << possible->getX() << ", " << possible->getY() << std::endl;
                 // board.print(); 
-                std::cerr << 1;
+                //std::cerr << 1;
                 board.doMove(possible, side);
                 // board.print();
-                std::cerr << 2;
+                //std::cerr << 2;
                 possible_score = board.naiveScore(side);
-                std::cerr << 3;
+                //std::cerr << 3;
                 board.undoMove(possible);
-                std::cerr << 4;
+                //std::cerr << 4;
                 // board.print();
                 if (best == nullptr)
                 {
@@ -103,6 +103,6 @@ Move *Player::doNaiveMove(Move *opponentsMove) {
         }
     }
     board.doMove(best, side);
-    board.print();
+    //board.print();
     return best;
 }

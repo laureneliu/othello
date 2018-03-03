@@ -149,7 +149,6 @@ void Board::undoMove(Move *m) {
     black.set(m->getX() + m->getY() * 8, 0);
     for (int i = 0; i < m->num_flipped; ++i) {
         black.flip(m->flipped[i]);
-        // std::cerr << m->flipped[i] % 8 << ", " << m->flipped[i] / 8 << std::endl;
     }
 }
 
