@@ -63,9 +63,9 @@ Move *Player::doNaiveMove(Move *opponentsMove) {
     {
         for (int j = 0; j < BOARDSIZE; ++j)
         {
-            std::cerr << -1;
+            std::cerr << -1 << std::endl;
             possible = new Move(i, j);
-            std::cerr << 0;
+            std::cerr << 0 << std::endl;
             if (board.checkMove(possible, side))
             {
                 std::cerr << possible->getX() << ", " << possible->getY() << std::endl;
