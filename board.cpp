@@ -1,4 +1,5 @@
 #include "board.hpp"
+#include <iostream>
 
 /*
  * Make a standard 8x8 othello board and initialize it to the standard setup.
@@ -132,6 +133,8 @@ void Board::doMove(Move *m, Side side) {
                 y += dy;
                 while (onBoard(x, y) && get(other, x, y)) {
                     set(side, x, y);
+                    m->flipped[m->num_flipped] = x + 8 * y;
+                    ++(m->num_flipped);
                     x += dx;
                     y += dy;
                 }
@@ -139,6 +142,14 @@ void Board::doMove(Move *m, Side side) {
         }
     }
     set(side, X, Y);
+}
+
+void Board::undoMove(Move *m) {
+    taken.set(m->getX() + m->getY() * 8, 0);
+    black.set(m->getX() + m->getY() * 8, 0);
+    for (int i = 0; i < m->num_flipped; ++i) {
+        black.flip(m->flipped[i]);
+    }
 }
 
 /*

@@ -9,9 +9,12 @@ class Move {
    
 public:
     int x, y;
+    int flipped[8];
+    int num_flipped;
     Move(int x, int y) {
         this->x = x;
-        this->y = y;        
+        this->y = y;
+        this->num_flipped = 0;
     }
     ~Move() {}
 

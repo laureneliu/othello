@@ -15,7 +15,6 @@ Player::Player(Side temp) {
     testingMinimax = false;
     side = temp;
     board = Board();
-    std::cerr << side << std::endl;
 
     /*
      * TODO: Do any initialization you need to do here (setting up the board,
@@ -48,6 +47,10 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
      * TODO: Implement how moves your AI should play here. You should first
      * process the opponent's opponents move before calculating your own move
      */
+    
+}
+
+Move *Player::doNaiveMove(Move *opponentsMove) {
     board.doMove(opponentsMove, (side == BLACK) ? WHITE : BLACK);
     Move *possible;
     Move *temp;
@@ -61,9 +64,9 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
             possible = new Move(i, j);
             if (board.checkMove(possible, side))
             {
-                Board *copy = board.copy();
-                copy->doMove(possible, side);
-                possible_score = copy->naiveScore(side);
+                board.doMove(possible, side);
+                possible_score = board.naiveScore(side);
+                board.undoMove(possible);
                 if (best == nullptr)
                 {
                     best = possible;
