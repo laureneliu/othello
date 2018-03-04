@@ -1,9 +1,13 @@
 #include "player.hpp"
 #include <iostream>
 #include <limits>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <queue>
 
 #define BOARDSIZE 8
-
+#define NTHREADS 1
 /*
  * Constructor for the player; initialize everything here. The side your AI is
  * on (BLACK or WHITE) is passed in as "side". The constructor must finish
@@ -124,10 +128,10 @@ Move *Player::AlphaBetaMove(Move *opponentsMove, int msleft)
         if (board.checkMove(possible, side))
         {
             board.doMove(possible, side);
-            possible_score = AlphaBetaEval(starting_depth, 
+            possible_score = AlphaBetaEval(board, starting_depth, 
                     std::numeric_limits<double>::lowest(), 
                     std::numeric_limits<double>::max(), false);
-            // std::cerr << possible->getX() << ',' << possible->getY() << ' ' << possible_score << std::endl;
+
             board.undoMove(possible);
             if (best == nullptr)
             {
@@ -155,7 +159,98 @@ Move *Player::AlphaBetaMove(Move *opponentsMove, int msleft)
     return best;
 }
 
-double Player::AlphaBetaEval(int depth, double alpha, double beta, bool maximizing)
+Move *Player::AlphaBetaMoveMultithread(Move *opponentsMove, int msleft) {
+    thread **t = new thread*[NTHREADS];
+    queue<int> completed;
+    for (int i = 0; i < NTHREADS; ++i) {
+        completed.push(i);
+    }
+
+    board.doMove(opponentsMove, (side == BLACK) ? WHITE : BLACK);
+    Move *possible;
+    Move *best_move = new Move(-1, -1);
+    double best_score = numeric_limits<double>::lowest();
+    for (int i = 0; i < BOARDSIZE * BOARDSIZE; ++i)
+    {
+        possible = new Move(i / 8, i % 8);
+        if (board.checkMove(possible, side))
+        {
+            // Wait for and get index of free thread
+            unique_lock<mutex> lk(m_cv);
+            if (completed.empty()) {
+                cv.wait(lk, [&completed]{return !completed.empty();});
+            }
+            int done = completed.front();
+            completed.pop();
+            lk.unlock();
+            cerr << "meh??" << endl;
+            if (t[done] != nullptr) {
+                t[done]->join();
+                cerr << "Best move is " << best_move << " before deleting thread " << done << endl;
+                delete t[done];
+                cerr << "Best move is " << best_move << " after thread " << done << endl;
+            }
+            cerr << "fa" << endl;
+            t[done] = new thread(&Player::AlphaBetaEvalThread, this,
+                           possible,
+                           ref(board), starting_depth, std::numeric_limits<double>::lowest(), 
+                            std::numeric_limits<double>::max(), false,
+                           done, ref(completed),
+                           ref(best_score), best_move);
+        }
+        else
+        {
+            delete possible;
+        }
+    }
+
+    for (int i = 0; i < NTHREADS; ++i) {
+        if (t[i] != nullptr) {
+            t[i]->join();
+            delete t[i];
+        }
+    }
+    delete[] t;
+
+    // delete everything
+
+    board.doMove(best_move, side);
+    cerr << "Final best move is " << best_move << endl;
+    return best_move;
+}
+
+void Player::AlphaBetaEvalThread(Move *possible_move,
+                            Board &b, int depth, double alpha, double beta, bool maximizing,
+                            int id, queue<int> &completed,
+                            double &best_score, Move *best_move) {
+    // Prepare for and do AlphaBetaEval
+    Board board_copy = *b.copy();
+    board_copy.doMove(possible_move, side);
+    double score = AlphaBetaEval(board_copy, depth, alpha, beta, maximizing);
+    cerr << id << endl;
+    // Set best score
+    m_best.lock();
+    if (score > best_score) {
+        *best_move = *possible_move;
+        delete possible_move;
+        best_score = score;
+    }
+    else {
+        delete possible_move;
+    }
+    cerr << "Changed best move to " << best_move << " in thread " << id << endl;
+    m_best.unlock();
+    
+    // Notify parent thread that evaluation complete
+    m_cv.lock();
+    completed.push(id);
+    m_cv.unlock();
+    cv.notify_one();
+
+    // All lock guards automatically deleted and mutexes unlocked
+}
+
+double Player::AlphaBetaEval(Board &b, int depth, double alpha, double beta, bool maximizing)
 {
     if (board.isDone())
     {
@@ -195,7 +290,7 @@ double Player::AlphaBetaEval(int depth, double alpha, double beta, bool maximizi
             {
                 played = true;
                 board.doMove(possible, side);
-                value = AlphaBetaEval(depth - 1, alpha, beta, !maximizing);
+                value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
                 best_value = max(best_value, value);
                 alpha = max(alpha, best_value);
                 board.undoMove(possible);
@@ -213,7 +308,7 @@ double Player::AlphaBetaEval(int depth, double alpha, double beta, bool maximizi
         }
         else
         {
-            return AlphaBetaEval(depth - 1, alpha, beta, !maximizing);
+            return AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
         }
     }
     else
@@ -226,7 +321,7 @@ double Player::AlphaBetaEval(int depth, double alpha, double beta, bool maximizi
             {
                 played = true;
                 board.doMove(possible, other);
-                value = AlphaBetaEval(depth - 1, alpha, beta, !maximizing);
+                value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
                 best_value = min(best_value, value);
                 beta = min(beta, best_value);
                 board.undoMove(possible);
@@ -244,7 +339,7 @@ double Player::AlphaBetaEval(int depth, double alpha, double beta, bool maximizi
         }
         else
         {
-            return AlphaBetaEval(depth - 1, alpha, beta, !maximizing);
+            return AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
         }
     }
 }
