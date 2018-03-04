@@ -118,40 +118,37 @@ Move *Player::AlphaBetaMove(Move *opponentsMove, int msleft)
     double possible_score;
     Move *best = nullptr;
     double best_score;
-    for (int i = 0; i < BOARDSIZE; ++i)
+    for (int i = 0; i < BOARDSIZE * BOARDSIZE; ++i)
     {
-        for (int j = 0; j < BOARDSIZE; ++j)
+        possible = new Move(i / 8, i % 8);
+        if (board.checkMove(possible, side))
         {
-            possible = new Move(i, j);
-            if (board.checkMove(possible, side))
+            board.doMove(possible, side);
+            possible_score = AlphaBetaEval(starting_depth, 
+                    std::numeric_limits<double>::lowest(), 
+                    std::numeric_limits<double>::max(), false);
+            // std::cerr << possible->getX() << ',' << possible->getY() << ' ' << possible_score << std::endl;
+            board.undoMove(possible);
+            if (best == nullptr)
             {
-                board.doMove(possible, side);
-                possible_score = AlphaBetaEval(starting_depth, 
-                        std::numeric_limits<double>::lowest(), 
-                        std::numeric_limits<double>::max(), false);
-                // std::cerr << possible->getX() << ',' << possible->getY() << ' ' << possible_score << std::endl;
-                board.undoMove(possible);
-                if (best == nullptr)
-                {
-                    best = possible;
-                    best_score = possible_score;
-                }
-                else if (possible_score > best_score)
-                {
-                    temp = best;
-                    best = possible;
-                    best_score = possible_score;
-                    delete temp;
-                }
-                else
-                {
-                    delete possible;
-                }
+                best = possible;
+                best_score = possible_score;
+            }
+            else if (possible_score > best_score)
+            {
+                temp = best;
+                best = possible;
+                best_score = possible_score;
+                delete temp;
             }
             else
             {
                 delete possible;
             }
+        }
+        else
+        {
+            delete possible;
         }
     }
     board.doMove(best, side);
@@ -191,7 +188,7 @@ double Player::AlphaBetaEval(int depth, double alpha, double beta, bool maximizi
     if (maximizing)
     {
         best_value = std::numeric_limits<double>::lowest();
-        for (int i = 0; i < BOARDSIZE; ++i)
+        for (int i = 0; i < BOARDSIZE * BOARDSIZE; ++i)
         {
             possible = new Move(i / 8, i % 8);
             if (board.checkMove(possible, side))
@@ -222,7 +219,7 @@ double Player::AlphaBetaEval(int depth, double alpha, double beta, bool maximizi
     else
     {
         best_value = std::numeric_limits<double>::max();
-        for (int i = 0; i < BOARDSIZE; ++i)
+        for (int i = 0; i < BOARDSIZE * BOARDSIZE; ++i)
         {
             possible = new Move(i / 8, i % 8);
             if (board.checkMove(possible, other))
