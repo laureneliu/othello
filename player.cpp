@@ -22,7 +22,7 @@ Player::Player(Side temp) {
     }
     else
     {
-        starting_depth = 4;
+        starting_depth = 5;
     }
 
     /*
@@ -193,25 +193,22 @@ double Player::AlphaBetaEval(int depth, double alpha, double beta, bool maximizi
         best_value = std::numeric_limits<double>::lowest();
         for (int i = 0; i < BOARDSIZE; ++i)
         {
-            for (int j = 0; j < BOARDSIZE; ++j)
+            possible = new Move(i / 8, i % 8);
+            if (board.checkMove(possible, side))
             {
-                possible = new Move(i, j);
-                if (board.checkMove(possible, side))
+                played = true;
+                board.doMove(possible, side);
+                value = AlphaBetaEval(depth - 1, alpha, beta, !maximizing);
+                best_value = max(best_value, value);
+                alpha = max(alpha, best_value);
+                board.undoMove(possible);
+                if (beta < alpha)
                 {
-                    played = true;
-                    board.doMove(possible, side);
-                    value = AlphaBetaEval(depth - 1, alpha, beta, !maximizing);
-                    best_value = max(best_value, value);
-                    alpha = max(alpha, best_value);
-                    board.undoMove(possible);
-                    if (beta < alpha)
-                    {
-                        delete possible;
-                        break;
-                    }
+                    delete possible;
+                    break;
                 }
-                delete possible;
             }
+            delete possible;
         }
         if (played)
         {
@@ -227,25 +224,22 @@ double Player::AlphaBetaEval(int depth, double alpha, double beta, bool maximizi
         best_value = std::numeric_limits<double>::max();
         for (int i = 0; i < BOARDSIZE; ++i)
         {
-            for (int j = 0; j < BOARDSIZE; ++j)
+            possible = new Move(i / 8, i % 8);
+            if (board.checkMove(possible, other))
             {
-                possible = new Move(i, j);
-                if (board.checkMove(possible, other))
+                played = true;
+                board.doMove(possible, other);
+                value = AlphaBetaEval(depth - 1, alpha, beta, !maximizing);
+                best_value = min(best_value, value);
+                beta = min(beta, best_value);
+                board.undoMove(possible);
+                if (beta < alpha)
                 {
-                    played = true;
-                    board.doMove(possible, other);
-                    value = AlphaBetaEval(depth - 1, alpha, beta, !maximizing);
-                    best_value = min(best_value, value);
-                    beta = min(beta, best_value);
-                    board.undoMove(possible);
-                    if (beta < alpha)
-                    {
-                        delete possible;
-                        break;
-                    }
+                    delete possible;
+                    break;
                 }
-                delete possible;
             }
+            delete possible;
         }
         if (played)
         {
