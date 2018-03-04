@@ -1,6 +1,14 @@
 #include "board.hpp"
 #include <iostream>
-
+#define BOARDSIZE 8
+const int loc_scores[64] = {20, -3, 11, 8, 8, 11, -3, 20, 
+                          -3, -7, -4, 1, 1, -4, -7, -3, 
+                          11, -4, 2, 2, 2, 2, -4, 11,
+                           8, 1, 2, -3, -3, 2, 1, 8,
+                           8, 1, 2, -3, -3, 2, 1, 8, 
+                          11, -4, 2, 2, 2, 2, -4, 11, 
+                          -3, -7, -4, 1, 1, -4, -7, -3, 
+                          20, -3, 11, 8, 8, 11, -3, 20};
 /*
  * Make a standard 8x8 othello board and initialize it to the standard setup.
  */
@@ -194,7 +202,264 @@ int Board::naiveScore(Side side)
 {
     return count(side) - count((side == BLACK) ? WHITE : BLACK);
 }
+/**
+ * returns score of board. Black maximizes and white minimizes
+ * TODO
+ */
+double Board::score(Side side)
+{
+    Move* possible;
+    double white_count = 0;
+    double black_count = 0;
+    for (int i = 0; i < BOARDSIZE; ++i)
+    {
+        for (int j = 0; j < BOARDSIZE; ++j)
+        {
+            possible = new Move(i, j);
+            if (checkMove(possible, BLACK))
+            {
+                ++black_count;
+            }
+            if (checkMove(possible, WHITE))
+            {
+                ++white_count;
+            }
+            delete possible;
+        }
+    }
+    double move_diff_val;
+    if (black_count + white_count != 0)
+    {
+        if (side == BLACK)
+        {
+            move_diff_val = 100 * (black_count - white_count) 
+                                   / (black_count + white_count);
+        }
+        else
+        {  
+            move_diff_val = 100 * (white_count - black_count) 
+                                   / (black_count + white_count);
+        }
+    }
+    else
+    {
+        move_diff_val = 0;
+    }
+    
+    double white_move_score = 0;
+    double black_move_score = 0;
+    for (int i = 0; i < BOARDSIZE * BOARDSIZE; ++i)
+    {
+        if (taken[i])
+        {
+            if (black[i])
+            {
+                black_move_score += loc_scores[i];
+            }
+            else
+            {
+                white_move_score += loc_scores[i];
+            }
+        }
+    }
+    
+    double mob_diff_val;
+    if (black_move_score + white_move_score != 0)
+    {
+        if (side == BLACK)
+        {
+            mob_diff_val = 100 * (black_move_score - white_move_score) 
+                                      / (black_move_score + white_move_score);
+        }
+        else
+        {
+            mob_diff_val = 100 * (white_move_score - black_move_score) 
+                                      / (black_move_score + white_move_score);
+        }
+    }
+    else
+    {
+        mob_diff_val = 0;
+    }
+    
+    double piece_diff_val;
+    if (side == BLACK)
+    {
+        piece_diff_val = 100 * (double) (count(BLACK) - count(WHITE))
+                                    / (double) (count(BLACK) + count(WHITE));
+    }
+    else
+    {
+        piece_diff_val = 100 * (double) (count(WHITE) - count(BLACK))
+                                    / (double) (count(BLACK) + count(WHITE));
+    }
+    
+    double black_corners = 0;
+    double white_corners = 0;
+    double black_corner_closeness = 0;
+    double white_corner_closeness = 0;
+    if(taken[0])
+    {
+        if (black[0])
+        {
+            ++black_corners;
+        }
+        else
+        {
+            ++white_corners;
+        }
+    }
+    else
+    {
+        if (taken[1])
+        {
+            if (black[1]) ++black_corner_closeness;
+            else ++white_corner_closeness;
+        }
+        if (taken[8])
+        {
+            if (black[8]) ++black_corner_closeness;
+            else ++white_corner_closeness;
+        }
+        if (taken[9])
+        {
+            if (black[9]) ++black_corner_closeness;
+            else ++white_corner_closeness;
+        }
+    }
+    if(taken[7])
+    {
+        if (black[7])
+        {
+            ++black_corners;
+        }
+        else
+        {
+            ++white_corners;
+        }
+    }
+    else
+    {
+        if (taken[6])
+        {
+            if (black[6]) ++black_corner_closeness;
+            else ++white_corner_closeness;
+        }
+        if (taken[14])
+        {
+            if (black[14]) ++black_corner_closeness;
+            else ++white_corner_closeness;
+        }
+        if (taken[15])
+        {
+            if (black[15]) ++black_corner_closeness;
+            else ++white_corner_closeness;
+        }
+    }
+    if(taken[56])
+    {
+        if (black[56])
+        {
+            ++black_corners;
+        }
+        else
+        {
+            ++white_corners;
+        }
+    }
+    else
+    {
+        if (taken[48])
+        {
+            if (black[48]) ++black_corner_closeness;
+            else ++white_corner_closeness;
+        }
+        if (taken[49])
+        {
+            if (black[49]) ++black_corner_closeness;
+            else ++white_corner_closeness;
+        }
+        if (taken[57])
+        {
+            if (black[57]) ++black_corner_closeness;
+            else ++white_corner_closeness;
+        }
+    }
+    if(taken[63])
+    {
+        if (black[63])
+        {
+            ++black_corners;
+        }
+        else
+        {
+            ++white_corners;
+        }
+    }
+    else
+    {
+        if (taken[54])
+        {
+            if (black[54]) ++black_corner_closeness;
+            else ++white_corner_closeness;
+        }
+        if (taken[55])
+        {
+            if (black[55]) ++black_corner_closeness;
+            else ++white_corner_closeness;
+        }
+        if (taken[62])
+        {
+            if (black[62]) ++black_corner_closeness;
+            else ++white_corner_closeness;
+        }
+    }
+    double cc_val;
+    if (white_corner_closeness + black_corner_closeness != 0)
+    {
+        if (side == BLACK)
+        {
+            cc_val = 100 * (white_corner_closeness - black_corner_closeness)
+                         / (black_corner_closeness + white_corner_closeness);
+        }
+        else
+        {
+            cc_val = 100 * (black_corner_closeness - white_corner_closeness)
+                         / (black_corner_closeness + white_corner_closeness);
+        }
+    }
+    else
+    {
+        cc_val = 0;
+    }
+    
+    double corner_diff_val;
+    if (black_corners + white_corners != 0)
+    {
+        if (side == BLACK)
+        {
+            corner_diff_val = 100 * (black_corners - white_corners) 
+                                         / (black_corners + white_corners);
+        }
+        else
+        {
+            corner_diff_val = 100 * (white_corners - black_corners) 
+                                         / (black_corners + white_corners);
+        }
+    }
+    else
+    {
+        corner_diff_val = 0;
+    }
+    
+    return piece_diff_val / 10 + 
+           (mob_diff_val + move_diff_val) + 
+           2 * cc_val + 10 * corner_diff_val;
+}
 
+/**
+ * prints the current state of the board for debugging purposes
+ */
 void Board::print()
 {
     std::cerr << std::endl;
