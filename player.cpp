@@ -7,7 +7,8 @@
 #include <queue>
 
 #define BOARDSIZE 8
-#define NTHREADS 4
+#define NTHREADS 1
+#define MAX_TRANSPOSITION_SIZE 1
 /*
  * Constructor for the player; initialize everything here. The side your AI is
  * on (BLACK or WHITE) is passed in as "side". The constructor must finish
@@ -26,20 +27,24 @@ Player::Player(Side temp) {
     }
     else
     {
-        starting_depth = 5;
+        starting_depth = 3;
     }
-
-    /*
-     * TODO: Do any initialization you need to do here (setting up the board,
-     * precalculating things, etc.) However, remember that you will only have
-     * 30 seconds
-     */
+    cache = new DLlist;
+    cache->start = nullptr;
+    cache->end = nullptr;
 }
 
 /*
  * Destructor for the player
  */
 Player::~Player() {
+    char *d;
+    while(cache->start != nullptr)
+    {
+    	d = pop(cache);
+        delete[] d;
+    }
+
 }
 
 /*
@@ -60,7 +65,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
      * TODO: Implement how moves your AI should play here. You should first
      * process the opponent's opponents move before calculating your own move
      */
-     return AlphaBetaMoveMultithread(opponentsMove, msLeft);
+     return AlphaBetaMove(opponentsMove, msLeft);
     
 } 
 
@@ -292,10 +297,62 @@ double Player::AlphaBetaEval(Board &b, int depth, double alpha, double beta, boo
             {
                 played = true;
                 b.doMove(possible, side);
-                value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
+                char *board_state = b.toString();
+                Datum *cached_score = trans_table[board_state];
+                if (cached_score != nullptr)
+                    cerr << cached_score->board_state << endl;
+                if (cached_score == nullptr)
+                {
+                    cerr << 1 << endl;    
+                    value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
+                    Datum *board_data = new Datum;
+                    board_data->depth = depth;
+                    board_data->score = value;
+                    board_data->board_state = board_state;
+                    m_cache.lock();
+                    cerr << "things" << endl;
+                    board_data->node = insert(cache, board_state);
+                    cerr << board_data->node << endl;
+                    trans_table[board_state] = board_data;
+                    if (trans_table.size() > MAX_TRANSPOSITION_SIZE)
+                    {
+                        char *to_delete = pop(cache);
+                        delete trans_table[to_delete];
+                        delete[] to_delete;
+                    }
+                    m_cache.unlock();
+                }
+                else if (cached_score->depth < depth)
+                {
+                    cerr << 2 << endl;
+                    value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
+                    cerr << 2.0 << endl;
+                    m_cache.lock();
+                    cached_score->depth = depth;
+                    cached_score->score = value;
+                    cerr << 2.1 << endl;    
+                    to_front(cache, cached_score->node);
+                    cerr << 2.2 << endl;
+                    m_cache.unlock();
+                    delete[] board_state;
+                    cerr << 2.3 << endl;
+                }
+                else
+                {
+                    cerr << 3 << endl;
+                    m_cache.lock();
+                    value = cached_score->score;
+                    cerr << 3.1 << endl;
+                    cerr << cached_score->node << endl;    
+                    to_front(cache, cached_score->node);
+                    cerr << 3.2 << endl;
+                    m_cache.unlock();
+                    delete[] board_state;
+                }
                 best_value = max(best_value, value);
                 alpha = max(alpha, best_value);
                 b.undoMove(possible);
+                cerr << "died?" << endl;
                 if (beta < alpha)
                 {
                     delete possible;
@@ -323,10 +380,65 @@ double Player::AlphaBetaEval(Board &b, int depth, double alpha, double beta, boo
             {
                 played = true;
                 b.doMove(possible, other);
-                value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
+                char *board_state = b.toString();
+                Datum *cached_score = trans_table[board_state];
+                cerr << "alive" << endl;
+                if (cached_score == nullptr)
+                {
+                    cerr << 1 << endl;    
+                    value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
+                    Datum *board_data = new Datum;
+                    board_data->depth = depth;
+                    board_data->score = value;
+                    board_data->board_state = board_state;
+                    m_cache.lock();
+                    cerr << "things" << endl;
+                    board_data->node = insert(cache, board_state);
+                    cerr << cache->start << " start" << endl;
+                    cerr << board_data->node << endl;
+                    trans_table[board_state] = board_data;
+                    if (trans_table.size() > MAX_TRANSPOSITION_SIZE)
+                    {
+                        char *to_delete = pop(cache);
+                        delete trans_table[to_delete];
+                        delete[] to_delete;
+                    }
+                    m_cache.unlock();
+
+                }
+                else if (cached_score->depth < depth)
+                {
+                    cerr << 2 << endl;
+                    value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
+                    cerr << 2.0 << endl;
+                    m_cache.lock();
+                    cached_score->depth = depth;
+                    cached_score->score = value;
+                    cerr << 22.1 << endl;    
+                    to_front(cache, cached_score->node);
+                    cerr << 2.2 << endl;
+                    m_cache.unlock();
+                    delete[] board_state;
+                    cerr << 2.3 << endl;
+                }
+                else
+                {
+                    cerr << 3 << endl;
+                    m_cache.lock();
+                    value = cached_score->score;
+                    cerr << 3.1 << endl;
+                    cerr << cached_score->node << endl;
+                    cerr << cache->start << "start2" << endl;    
+                    to_front(cache, cached_score->node);
+                    cerr << 3.2 << endl;
+                    m_cache.unlock();
+                    delete[] board_state;
+                }
+                cerr << "still alive" << endl;
                 best_value = min(best_value, value);
                 beta = min(beta, best_value);
                 b.undoMove(possible);
+                cerr << "died?" << endl;
                 if (beta < alpha)
                 {
                     delete possible;

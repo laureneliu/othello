@@ -32,7 +32,7 @@ public:
     int naiveScore(Side side);
     double score(Side side);
     void print();
-
+    char *toString();
     void setBoard(char data[]);
 };
 

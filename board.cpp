@@ -477,3 +477,18 @@ void Board::print()
         std::cerr << std::endl;
     }
 }
+
+char *Board::toString()
+{
+    char *rep = new char[129];
+    for (int i = 0; i < 64; ++i)
+    {
+        rep[i] = taken[i] + '0';
+    }
+    for (int i = 64; i < 128; ++i)
+    {
+        rep[i] = black[i - 64] + '0';
+    }
+    rep[128] = '\0';
+    return rep;
+}
