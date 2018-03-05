@@ -8,6 +8,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <unordered_map>
+#include <typeinfo>
 
 using namespace std;
 
@@ -56,6 +57,7 @@ public:
         int id, queue<int> &completed,
         double &best_score, Move *best_move);
     double AlphaBetaEval(Board &b, int depth, double alpha, double beta, bool maximizing);
+    double CacheEval(Board &b, int depth, double alpha, double beta, bool maximizing);
 
     // Flag to tell if the player is running within the test_minimax context
     bool testingMinimax;
@@ -83,34 +85,30 @@ public:
 
     void to_front(DLlist *list, Node *node)
     {
+        return;
         if (list->start == node) return;
-        cerr << list->start << endl;
-        if (node == nullptr)
-        {
-            cerr << "what" << endl;
-        }
         cerr << 10 << endl;
-        Node *temp = node->prev;
-        // wtf
-        cerr << 11 << endl;
+        if (list->end == node)
+        {
+            list->end = node->prev;
+        }
         if (node->prev != nullptr)
         {
-            cerr << 12 << endl;
+            cerr << 10.1 << endl;
             node->prev->next = node->next;
-            cerr << 13 << endl;
         }
         if (node->next != nullptr)
         {
-        cerr << 14 << endl;
-
-            node->next->prev = temp;
-        cerr << 15 << endl;
-
+            cerr << 10.2 << endl;
+            cerr << typeid(node->next->prev).name() << ' ' << typeid(node->prev).name() << endl;
+            node->next->prev = node->prev;
+            cerr << 10.3 << endl;
         }
+        cerr << 11 << endl;
         node->next = list->start;
+        list->start->prev = node;
         node->prev = nullptr;
         list->start = node;
-        cerr << "finished" << endl;
     }
 
     char *pop(DLlist *list)
