@@ -226,9 +226,11 @@ void Player::AlphaBetaEvalThread(Move *possible_move,
                             int id, queue<int> &completed,
                             double &best_score, Move *best_move) {
     // Prepare for and do AlphaBetaEval
-    Board board_copy = *b.copy();
+    Board *temp = b.copy();
+    Board board_copy = *temp;
     board_copy.doMove(possible_move, side);
     double score = AlphaBetaEval(board_copy, depth, alpha, beta, maximizing);
+    delete temp;
     // Set best score
     m_best.lock();
     if (score >= best_score) {
