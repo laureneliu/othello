@@ -8,7 +8,7 @@
 
 #define BOARDSIZE 8
 #define NTHREADS 4
-#define MAX_TRANSPOSITION_SIZE 1000
+#define MAX_TRANSPOSITION_SIZE 10000
 /*
  * Constructor for the player; initialize everything here. The side your AI is
  * on (BLACK or WHITE) is passed in as "side". The constructor must finish
@@ -27,7 +27,7 @@ Player::Player(Side temp) {
     }
     else
     {
-        starting_depth = 5;
+        starting_depth = 4;
     }
     cache = new DLlist;
     cache->start = nullptr;
@@ -38,7 +38,14 @@ Player::Player(Side temp) {
  * Destructor for the player
  */
 Player::~Player() {
-
+    while(length(cache) > 0)
+    {
+        string to_erase = pop(cache);
+        delete trans_table[to_erase];
+        trans_table.erase(to_erase);
+    }
+    trans_table.erase(trans_table.begin(), trans_table.end());
+    delete cache;
 }
 
 /*
@@ -260,10 +267,17 @@ double Player::CacheEval(Board *b, int depth, double alpha, double beta, bool ma
     double value;
     string board_state = b->toString();
     bool in_table;
+    double cached_score; 
+    int cached_depth;
     m_cache.lock();
     if (!trans_table.empty())
     {
         in_table = (trans_table.find(board_state) != trans_table.end());
+        if (in_table)
+        {
+            cached_score = trans_table[board_state]->score;
+            cached_depth = trans_table[board_state]->depth;
+        }
     }
     else
     {
@@ -290,27 +304,15 @@ double Player::CacheEval(Board *b, int depth, double alpha, double beta, bool ma
             trans_table.insert({board_state, board_data});
             if (trans_table.size() > MAX_TRANSPOSITION_SIZE)
             {
-                trans_table.erase(pop(cache));
+                string to_erase = pop(cache);
+                delete trans_table[to_erase];
+                trans_table.erase(to_erase);
             }
         }
         m_cache.unlock();
     }
     else
     {
-        m_cache.lock();
-        double cached_score; 
-        int cached_depth;
-        if (trans_table.find(board_state) != trans_table.end())
-        {
-            cached_score = trans_table[board_state]->score;
-            cached_depth = trans_table[board_state]->depth;
-        }
-        else
-        {
-            cached_depth = 0;
-            cached_score = 0;
-        }
-        m_cache.unlock();
         if (cached_depth < depth)
         {
             value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
@@ -331,7 +333,9 @@ double Player::CacheEval(Board *b, int depth, double alpha, double beta, bool ma
                 trans_table.insert({board_state, board_data});
                 if (trans_table.size() > MAX_TRANSPOSITION_SIZE)
                 {
-                    trans_table.erase(pop(cache));
+                    string to_erase = pop(cache);
+                    delete trans_table[to_erase];
+                    trans_table.erase(to_erase);
                 }
             }
             m_cache.unlock();
@@ -352,22 +356,7 @@ double Player::CacheEval(Board *b, int depth, double alpha, double beta, bool ma
 
 double Player::AlphaBetaEval(Board *b, int depth, double alpha, double beta, bool maximizing)
 {
-    if (b->isDone())
-    {
-        if (testingMinimax)
-        {
-            return b->naiveScore(side);
-        }
-        else if (b->naiveScore(side) > 0)
-        {
-            return std::numeric_limits<double>::max();
-        }
-        else
-        {
-            return std::numeric_limits<double>::lowest();
-        }
-    }
-    else if (depth == 0)
+    if (depth == 0)
     {
         if (testingMinimax)
         {
@@ -378,6 +367,7 @@ double Player::AlphaBetaEval(Board *b, int depth, double alpha, double beta, boo
     double value = 0;
     double best_value;
     Move *possible;
+    bool done = true;
     bool played = false;
     Side other = (side == BLACK) ? WHITE : BLACK;
     if (maximizing)
@@ -388,6 +378,7 @@ double Player::AlphaBetaEval(Board *b, int depth, double alpha, double beta, boo
             possible = new Move(i / 8, i % 8);
             if (b->checkMove(possible, side))
             {
+                done = false;
                 played = true;
                 b->doMove(possible, side);
                 // value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
@@ -401,7 +392,26 @@ double Player::AlphaBetaEval(Board *b, int depth, double alpha, double beta, boo
                     break;
                 }
             }
+            if (b->checkMove(possible, other))
+            {
+                done = false;
+            }
             delete possible;
+        }
+        if (done)
+        {
+            if (testingMinimax)
+            {
+                return b->naiveScore(side);
+            }
+            else if (b->naiveScore(side) >= 0)
+            {
+                return std::numeric_limits<double>::max();
+            }
+            else
+            {
+                return std::numeric_limits<double>::lowest();
+            }
         }
         if (played)
         {
@@ -422,6 +432,7 @@ double Player::AlphaBetaEval(Board *b, int depth, double alpha, double beta, boo
             if (b->checkMove(possible, other))
             {
                 played = true;
+                done = false;
                 b->doMove(possible, other);
                 // value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
                 value = CacheEval(b, depth, alpha, beta, maximizing);
@@ -434,7 +445,26 @@ double Player::AlphaBetaEval(Board *b, int depth, double alpha, double beta, boo
                     break;
                 }
             }
+            if (b->checkMove(possible, side))
+            {
+                done = false;
+            }
             delete possible;
+        }
+        if (done)
+        {
+            if (testingMinimax)
+            {
+                return b->naiveScore(side);
+            }
+            else if (b->naiveScore(side) >= 0)
+            {
+                return std::numeric_limits<double>::max();
+            }
+            else
+            {
+                return std::numeric_limits<double>::lowest();
+            }
         }
         if (played)
         {

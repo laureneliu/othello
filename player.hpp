@@ -91,7 +91,6 @@ public:
         to_insert->next = list->start;
         to_insert->prev = nullptr;
         list->start = to_insert;
-        assert(is_correct(list));
         return to_insert;
     }
 
@@ -102,8 +101,6 @@ public:
      */
     void to_front(DLlist *list, Node *node)
     {
-        assert(is_correct(list));
-        assert(node->next != nullptr || node->prev != nullptr);
         if (list->start == node) return;
         if (list->end == node)
         {
@@ -111,19 +108,16 @@ public:
         }
         if (node->prev != nullptr)
         {
-            assert(node->prev->next == node);
             node->prev->next = node->next;
         }
         if (node->next != nullptr)
         {
-            assert(node->next->prev == node);
             node->next->prev = node->prev;
         }
         node->next = list->start;
         list->start->prev = node;
         node->prev = nullptr;
         list->start = node;
-        assert(is_correct(list));
     }
 
     /**
@@ -167,7 +161,7 @@ public:
         while(temp != nullptr)
         {
             temp = temp->next;
-            i++;
+            ++i;
         }
         return i;
     }

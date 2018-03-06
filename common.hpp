@@ -9,7 +9,7 @@ class Move {
    
 public:
     int x, y;
-    int flipped[50];
+    int flipped[21];
     int num_flipped;
     Move(int x, int y) {
         this->x = x;
