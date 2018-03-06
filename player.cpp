@@ -7,8 +7,8 @@
 #include <queue>
 
 #define BOARDSIZE 8
-#define NTHREADS 1
-#define MAX_TRANSPOSITION_SIZE 100
+#define NTHREADS 4
+#define MAX_TRANSPOSITION_SIZE 1000
 /*
  * Constructor for the player; initialize everything here. The side your AI is
  * on (BLACK or WHITE) is passed in as "side". The constructor must finish
@@ -27,7 +27,7 @@ Player::Player(Side temp) {
     }
     else
     {
-        starting_depth = 4;
+        starting_depth = 5;
     }
     cache = new DLlist;
     cache->start = nullptr;
@@ -38,12 +38,6 @@ Player::Player(Side temp) {
  * Destructor for the player
  */
 Player::~Player() {
-    char *d;
-    while(cache->start != nullptr)
-    {
-    	d = pop(cache);
-        delete[] d;
-    }
 
 }
 
@@ -65,7 +59,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
      * TODO: Implement how moves your AI should play here. You should first
      * process the opponent's opponents move before calculating your own move
      */
-     return AlphaBetaMove(opponentsMove, msLeft);
+     return AlphaBetaMoveMultithread(opponentsMove, msLeft);
     
 } 
 
@@ -133,7 +127,7 @@ Move *Player::AlphaBetaMove(Move *opponentsMove, int msleft)
         if (board.checkMove(possible, side))
         {
             board.doMove(possible, side);
-            possible_score = AlphaBetaEval(board, starting_depth, 
+            possible_score = AlphaBetaEval(&board, starting_depth, 
                     std::numeric_limits<double>::lowest(), 
                     std::numeric_limits<double>::max(), false);
 
@@ -196,9 +190,10 @@ Move *Player::AlphaBetaMoveMultithread(Move *opponentsMove, int msleft) {
                 t[done]->join();
                 delete t[done];
             }
+            Board *b = &board;
             t[done] = new thread(&Player::AlphaBetaEvalThread, this,
                            possible,
-                           ref(board), starting_depth, std::numeric_limits<double>::lowest(), 
+                           b, starting_depth, std::numeric_limits<double>::lowest(), 
                            std::numeric_limits<double>::max(), false,
                            done, ref(completed),
                            ref(best_score), best_move);
@@ -227,15 +222,14 @@ Move *Player::AlphaBetaMoveMultithread(Move *opponentsMove, int msleft) {
 }
 
 void Player::AlphaBetaEvalThread(Move *possible_move,
-                            Board &b, int depth, double alpha, double beta, bool maximizing,
+                            Board *b, int depth, double alpha, double beta, bool maximizing,
                             int id, queue<int> &completed,
                             double &best_score, Move *best_move) {
     // Prepare for and do AlphaBetaEval
-    Board *temp = b.copy();
-    Board board_copy = *temp;
-    board_copy.doMove(possible_move, side);
+    Board *board_copy = b->copy();
+    board_copy->doMove(possible_move, side);
     double score = AlphaBetaEval(board_copy, depth, alpha, beta, maximizing);
-    delete temp;
+    delete board_copy;
     // Set best score
     m_best.lock();
     if (score >= best_score) {
@@ -257,71 +251,114 @@ void Player::AlphaBetaEvalThread(Move *possible_move,
     // All lock guards automatically deleted and mutexes unlocked
 }
 
-double Player::CacheEval(Board& b, int depth, double alpha, double beta, bool maximizing)
+double Player::CacheEval(Board *b, int depth, double alpha, double beta, bool maximizing)
 {
-    double value;
-    char *board_state = b.toString();
-    Datum *cached_score = trans_table[board_state];
-    if (cached_score == nullptr)
+    if (depth < 2)
     {
-        value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
-        Datum *board_data = new Datum;
-        board_data->depth = depth;
-        board_data->score = value;
-        board_data->board_state = board_state;
-        m_cache.lock();
-        board_data->node = insert(cache, board_state);
-        trans_table[board_state] = board_data;
-        cerr << trans_table.size() << endl;
-        if (trans_table.size() > MAX_TRANSPOSITION_SIZE)
-        {
-            char *to_delete = pop(cache);
-            delete trans_table[to_delete];
-            delete[] to_delete;
-            cerr << "deleting" << endl;
-        }
-        m_cache.unlock();
+        return AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
     }
-    else if (cached_score->depth < depth)
+    double value;
+    string board_state = b->toString();
+    bool in_table;
+    m_cache.lock();
+    if (!trans_table.empty())
     {
-        cerr << 2 << endl;
-        value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
-        cerr << 2.0 << endl;
-        m_cache.lock();
-        cached_score->depth = depth;
-        cached_score->score = value;
-        cerr << 2.1 << endl;    
-        cerr << cache->start << ' ' << cached_score->node << endl;
-        to_front(cache, cached_score->node);
-        cerr << 2.2 << endl;
-        m_cache.unlock();
-        delete[] board_state;
-        cerr << 2.3 << endl;
+        in_table = (trans_table.find(board_state) != trans_table.end());
     }
     else
     {
-        cerr << 3 << endl;
+        in_table = false;
+    }
+    m_cache.unlock();
+    if (!in_table)
+    {
+        value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
         m_cache.lock();
-        value = cached_score->score;
-        cerr << value << ' ' << cached_score->depth << board_state << endl;
-        cerr << 3.1 << endl;
-        to_front(cache, cached_score->node);
-        cerr << 3.2 << endl;
+        if (trans_table.find(board_state) != trans_table.end())
+        {
+            Datum *cached = trans_table[board_state];
+            cached->score = value;
+            cached->depth = depth;
+        }
+        else
+        {
+            Datum *board_data = new Datum;
+            board_data->depth = depth;
+            board_data->score = value;
+            board_data->board_state = board_state;
+            board_data->node = insert(cache, board_state);
+            trans_table.insert({board_state, board_data});
+            if (trans_table.size() > MAX_TRANSPOSITION_SIZE)
+            {
+                trans_table.erase(pop(cache));
+            }
+        }
         m_cache.unlock();
-        delete[] board_state;
+    }
+    else
+    {
+        m_cache.lock();
+        double cached_score; 
+        int cached_depth;
+        if (trans_table.find(board_state) != trans_table.end())
+        {
+            cached_score = trans_table[board_state]->score;
+            cached_depth = trans_table[board_state]->depth;
+        }
+        else
+        {
+            cached_depth = 0;
+            cached_score = 0;
+        }
+        m_cache.unlock();
+        if (cached_depth < depth)
+        {
+            value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
+            m_cache.lock();
+            if (trans_table.find(board_state) != trans_table.end())
+            {
+                Datum *cached = trans_table[board_state];
+                cached->score = value;
+                cached->depth = depth;
+            }
+            else
+            {
+                Datum *board_data = new Datum;
+                board_data->depth = depth;
+                board_data->score = value;
+                board_data->board_state = board_state;
+                board_data->node = insert(cache, board_state);
+                trans_table.insert({board_state, board_data});
+                if (trans_table.size() > MAX_TRANSPOSITION_SIZE)
+                {
+                    trans_table.erase(pop(cache));
+                }
+            }
+            m_cache.unlock();
+        }
+        else
+        {
+            m_cache.lock();
+            value = cached_score;
+            if (trans_table.find(board_state) != trans_table.end())
+            {
+                to_front(cache, trans_table[board_state]->node);
+            }
+            m_cache.unlock();
+        }
     }
     return value;
 }
 
-double Player::AlphaBetaEval(Board &b, int depth, double alpha, double beta, bool maximizing)
+double Player::AlphaBetaEval(Board *b, int depth, double alpha, double beta, bool maximizing)
 {
-    if (b.isDone())
+    if (b->isDone())
     {
         if (testingMinimax)
         {
-            return b.naiveScore(side);
+            return b->naiveScore(side);
         }
-        else if (b.naiveScore(side) > 0)
+        else if (b->naiveScore(side) > 0)
         {
             return std::numeric_limits<double>::max();
         }
@@ -334,9 +371,9 @@ double Player::AlphaBetaEval(Board &b, int depth, double alpha, double beta, boo
     {
         if (testingMinimax)
         {
-            return b.naiveScore(side);
+            return b->naiveScore(side);
         }
-        return b.score(side);
+        return b->score(side);
     }
     double value = 0;
     double best_value;
@@ -349,14 +386,15 @@ double Player::AlphaBetaEval(Board &b, int depth, double alpha, double beta, boo
         for (int i = 0; i < BOARDSIZE * BOARDSIZE; ++i)
         {
             possible = new Move(i / 8, i % 8);
-            if (b.checkMove(possible, side))
+            if (b->checkMove(possible, side))
             {
                 played = true;
-                b.doMove(possible, side);
+                b->doMove(possible, side);
+                // value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
                 value = CacheEval(b, depth, alpha, beta, maximizing);
                 best_value = max(best_value, value);
                 alpha = max(alpha, best_value);
-                b.undoMove(possible);
+                b->undoMove(possible);
                 if (beta < alpha)
                 {
                     delete possible;
@@ -371,6 +409,7 @@ double Player::AlphaBetaEval(Board &b, int depth, double alpha, double beta, boo
         }
         else
         {
+            // return AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
             return CacheEval(b, depth, alpha, beta, maximizing);
         }
     }
@@ -380,14 +419,15 @@ double Player::AlphaBetaEval(Board &b, int depth, double alpha, double beta, boo
         for (int i = 0; i < BOARDSIZE * BOARDSIZE; ++i)
         {
             possible = new Move(i / 8, i % 8);
-            if (b.checkMove(possible, other))
+            if (b->checkMove(possible, other))
             {
                 played = true;
-                b.doMove(possible, other);
+                b->doMove(possible, other);
+                // value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
                 value = CacheEval(b, depth, alpha, beta, maximizing);
                 best_value = min(best_value, value);
                 beta = min(beta, best_value);
-                b.undoMove(possible);
+                b->undoMove(possible);
                 if (beta < alpha)
                 {
                     delete possible;
@@ -402,6 +442,7 @@ double Player::AlphaBetaEval(Board &b, int depth, double alpha, double beta, boo
         }
         else
         {
+            // return  AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
             return CacheEval(b, depth, alpha, beta, maximizing);
         }
     }

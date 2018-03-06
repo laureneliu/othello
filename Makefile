@@ -12,7 +12,7 @@ testgame: testgame.o
 	$(CC) -o $@ $^ -pthread
 
 testminimax: $(OBJS) testminimax.o
-	$(CC) -o $@ $^
+	$(CC) -pthread -o $@ $^
 
 %.o: %.cpp
 	$(CC) -c $(CFLAGS) -x c++ $< -o $@

@@ -1,5 +1,6 @@
 #include "board.hpp"
 #include <iostream>
+#include <string>
 #define BOARDSIZE 8
 const int loc_scores[64] = {20, -3, 11, 8, 8, 11, -3, 20, 
                           -3, -7, -4, 1, 1, -4, -7, -3, 
@@ -478,17 +479,16 @@ void Board::print()
     }
 }
 
-char *Board::toString()
+string Board::toString()
 {
-    char *rep = new char[129];
+    string rep = "";
     for (int i = 0; i < 64; ++i)
     {
-        rep[i] = taken[i] + '0';
+        rep +=(taken[i] + '0');
     }
     for (int i = 64; i < 128; ++i)
     {
-        rep[i] = black[i - 64] + '0';
+        rep += (black[i - 64] + '0');
     }
-    rep[128] = '\0';
     return rep;
 }

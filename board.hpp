@@ -3,6 +3,7 @@
 
 #include <bitset>
 #include "common.hpp"
+#include <string>
 using namespace std;
 
 class Board {
@@ -32,7 +33,7 @@ public:
     int naiveScore(Side side);
     double score(Side side);
     void print();
-    char *toString();
+    string toString();
     void setBoard(char data[]);
 };
 
