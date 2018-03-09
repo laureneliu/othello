@@ -9,12 +9,10 @@ class Move {
    
 public:
     int x, y;
-    int flipped[21];
-    int num_flipped;
+    double score;
     Move(int x, int y) {
         this->x = x;
         this->y = y; 
-        this->num_flipped = 0;
 
     }
     ~Move() {
@@ -26,6 +24,19 @@ public:
 
     void setX(int x) { this->x = x; }
     void setY(int y) { this->y = y; }
+    
 };
+
+
+template <typename T> bool MoveComp(const T * const & a, const T * const & b)
+{
+   return a->score > b->score;
+}
+
+
+template <typename T> bool MoveCompRev(const T * const & a, const T * const & b)
+{
+   return a->score < b->score;
+}
 
 #endif

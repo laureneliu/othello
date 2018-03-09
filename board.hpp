@@ -4,6 +4,7 @@
 #include <bitset>
 #include "common.hpp"
 #include <string>
+#include <vector>
 using namespace std;
 
 class Board {
@@ -26,11 +27,12 @@ public:
     bool hasMoves(Side side);
     bool checkMove(Move *m, Side side);
     void doMove(Move *m, Side side);
-    void undoMove(Move *m);
     int count(Side side);
+    int count();
     int countBlack();
     int countWhite();
     int naiveScore(Side side);
+    vector<Move*> generateMoves(Side side);
     double score(Side side);
     void print();
     string toString();

@@ -5,14 +5,31 @@
 #include <mutex>
 #include <condition_variable>
 #include <queue>
+#include <algorithm> 
+#include <vector>
+#include <chrono>
+#include <fstream>
+
 
 #define BOARDSIZE 8
-#define NTHREADS 4
-#define MAX_TRANSPOSITION_SIZE 10000
+#define NTHREADS 6
+#define MAX_TRANSPOSITION_SIZE 20000
+#define OPENING false
+
+
+    
+typedef std::chrono::high_resolution_clock Time;
+typedef std::chrono::milliseconds ms;
+typedef std::chrono::duration<float> fsec;
+
 /*
  * Constructor for the player; initialize everything here. The side your AI is
  * on (BLACK or WHITE) is passed in as "side". The constructor must finish
  * within 30 seconds.
+ * 
+ * TODO:
+ * generate moves and sort do depth 2
+ * prune half of the bad moves and go to lower depth
  */
  
 
@@ -21,17 +38,37 @@ Player::Player(Side temp) {
     testingMinimax = false;
     side = temp;
     board = Board();
-    if (testingMinimax)
-    {
-        starting_depth = 2;
-    }
-    else
-    {
-        starting_depth = 4;
-    }
     cache = new DLlist;
     cache->start = nullptr;
     cache->end = nullptr;
+    use_obook = true;
+    
+    if (!OPENING)
+    {
+        return;
+    }
+    if (side == BLACK)
+    {
+        string board;
+        int x;
+        ifstream myfile ("Team 436_BLACK_OPENING_BOOK.txt");
+        while (!myfile.eof())
+        {
+            myfile >> board >> x;
+            opening_book.insert({board, x});
+        }
+    }
+    else
+    {
+        string board;
+        int x;
+        ifstream myfile ("Team 436_WHITE_OPENING_BOOK.txt");
+        while (!myfile.eof())
+        {
+            myfile >> board >> x;
+            opening_book.insert({board, x});
+        }
+    }
 }
 
 /*
@@ -66,188 +103,220 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
      * TODO: Implement how moves your AI should play here. You should first
      * process the opponent's opponents move before calculating your own move
      */
-     return AlphaBetaMoveMultithread(opponentsMove, msLeft);
-    
-} 
-
-Move *Player::doNaiveMove(Move *opponentsMove) {
-    board.doMove(opponentsMove, (side == BLACK) ? WHITE : BLACK);
-    Move *possible;
-    Move *temp;
-    int possible_score;
-    Move *best = nullptr;
-    int best_score;
-    for (int i = 0; i < BOARDSIZE; ++i)
+    if (board.checkMove(opponentsMove, (side == BLACK) ? WHITE : BLACK))
     {
-        for (int j = 0; j < BOARDSIZE; ++j)
-        {
-            possible = new Move(i, j);
-            if (board.checkMove(possible, side))
-            {
-                board.doMove(possible, side);
-                possible_score = board.naiveScore(side);
-                board.undoMove(possible);
-                if (best == nullptr)
-                {
-                    best = possible;
-                    best_score = possible_score;
-                }
-                else if (possible_score > best_score)
-                {
-                    temp = best;
-                    best = possible;
-                    best_score = possible_score;
-                    delete temp;
-                }
-                else
-                {
-                    delete possible;
-                }
-            }
-            else
-            {
-                delete possible;
-            }
-        }
+        board.doMove(opponentsMove, (side == BLACK) ? WHITE : BLACK);
     }
-    board.doMove(best, side);
-    return best;
-}
-
-/**
- * TODO: fix it in the case where it wants to minimize?
- * @param opponentsMove
- * @param msleft
- * @return 
- */
-Move *Player::AlphaBetaMove(Move *opponentsMove, int msleft)
-{
-    board.doMove(opponentsMove, (side == BLACK) ? WHITE : BLACK);
-    Move *possible;
-    Move *temp;
-    double possible_score;
-    Move *best = nullptr;
-    double best_score;
-    for (int i = 0; i < BOARDSIZE * BOARDSIZE; ++i)
+    if (use_obook)
     {
-        possible = new Move(i / 8, i % 8);
-        if (board.checkMove(possible, side))
+        string board_string = board.toString();
+        if (opening_book.find(board_string) != opening_book.end())
         {
-            board.doMove(possible, side);
-            possible_score = AlphaBetaEval(&board, starting_depth, 
-                    std::numeric_limits<double>::lowest(), 
-                    std::numeric_limits<double>::max(), false);
-
-            board.undoMove(possible);
-            if (best == nullptr)
-            {
-                best = possible;
-                best_score = possible_score;
-            }
-            else if (possible_score >= best_score)
-            {
-                temp = best;
-                best = possible;
-                best_score = possible_score;
-                delete temp;
-            }
-            else
-            {
-                delete possible;
-            }
+            int m = opening_book[board_string];
+            Move *opening_move = new Move(m % 8, m / 8);
+            board.doMove(opening_move, side);
+            cerr << "using book" << endl;
+            return opening_move;
         }
         else
         {
-            delete possible;
+            use_obook = false;
         }
     }
-    board.doMove(best, side);
-    return best;
+    vector<Move*> moves = board.generateMoves(side);
+    if (moves.size() == 0)
+    {
+        return nullptr;
+    }
+    if (moves.size() == 1)
+    {
+        board.doMove(moves[0], side);
+        return moves[0];
+    }
+    
+    auto t0 = Time::now();
+    auto t1 = Time::now();
+    fsec fs = t1 - t0;
+    ms d = std::chrono::duration_cast<ms>(fs);
+    int depth = 1;
+    while (d.count() < msLeft / (64 - board.count() / 2))
+    {
+        depth += 1;
+        AlphaBetaMoveMultithread(moves, &board, depth);
+        if (moves[0]->score == std::numeric_limits<double>::max() ||
+            depth > (64 - board.count()))
+        {
+            cerr << moves[0]->score << endl;
+            break;
+        }
+        auto t1 = Time::now();
+        fs = t1 - t0;
+        d = std::chrono::duration_cast<ms>(fs);
+    }
+    cerr << side << "Depth reached " << depth <<  ". Time spent " << d.count() << endl;
+    board.doMove(moves[0], side);
+    for (uint i = 1; i < moves.size(); ++i)
+    {
+        delete moves[i];
+    }
+    return moves[0];
 }
 
-Move *Player::AlphaBetaMoveMultithread(Move *opponentsMove, int msleft) {
-    thread **t = new thread*[NTHREADS];
-    for (int i = 0; i < NTHREADS; ++i)
+void Player::GenerateOpeningBook(Board *b, int depth, int num_moves)
+{
+    // file thing
+    if (num_moves == 0) return;
+    
+    ofstream myfile;
+    cout << num_moves << endl;
+    if (side == BLACK)
+    {
+        myfile.open ("Team 436_BLACK_OPENING_BOOK.txt", std::fstream::out | std::fstream::app);
+        board = (*b);
+        vector<Move*> moves= board.generateMoves(BLACK);
+        AlphaBetaMoveMultithread(moves, &board, depth);
+        myfile << b->toString() << ' ' << moves[0]->getX() + (8 * moves[0]->getY()) << endl;
+        b->doMove(moves[0], side);
+        myfile.close();
+
+        for (uint i = 0; i < moves.size(); ++i)
+        {
+            delete moves[i];
+        }
+        
+        Board *b2 = b->copy();
+        for (int j = 0; j < BOARDSIZE * BOARDSIZE; j++)
+        {
+            Move *possible = new Move(j % 8, j / 8);
+            if (b->checkMove(possible, WHITE))
+            {
+                Board *b_copy = b2->copy();
+                b_copy->doMove(possible, WHITE);
+                GenerateOpeningBook(b_copy, depth, num_moves - 1);
+                delete possible;
+            }
+            else
+            {
+                delete possible;
+            }
+        }
+    }
+    else
+    {
+        Board *b2 = b->copy();
+        for (int j = 0; j < BOARDSIZE * BOARDSIZE; j++)
+        {
+            Move *possible = new Move(j / 8, j % 8);
+            if (b->checkMove(possible, BLACK))
+            {
+                Board *b_copy = b2->copy();
+                b_copy->doMove(possible, BLACK);
+                myfile.open ("Team 436_WHITE_OPENING_BOOK.txt", std::fstream::out | std::fstream::app);
+                board = *b_copy;
+                vector<Move*> moves= b_copy->generateMoves(WHITE);
+                AlphaBetaMoveMultithread(moves, &board, depth);
+                myfile << b_copy->toString() << ' ' << moves[0]->getX() + (8 * moves[0]->getY()) << endl;
+                myfile.close();
+                b_copy->doMove(moves[0], side);
+                for (uint i = 0; i < moves.size(); ++i)
+                {
+                    delete moves[i];
+                }
+                delete possible;
+                GenerateOpeningBook(b_copy, depth, num_moves - 1);
+                delete b_copy;
+            }
+            else
+            {
+                delete possible;
+            }
+        }
+    }
+}
+
+void Player::AlphaBetaSort(vector<Move*> &moves, Board *b, Side side, bool maximizing)
+{
+    for (uint i = 0; i < moves.size(); ++i)
+    {
+        Board *b_copy = b->copy();
+        b_copy->doMove(moves[i], side);
+        moves[i]->score = AlphaBetaEval(b_copy, 2, std::numeric_limits<double>::lowest(),
+                            std::numeric_limits<double>::max(), !maximizing);
+    }
+    if (maximizing)
+    {
+        sort(moves.begin(), moves.end(), MoveComp<Move>);
+    }
+    else
+    {
+        sort(moves.begin(), moves.end(), MoveCompRev<Move>);
+    }
+}
+
+
+void Player::AlphaBetaMoveMultithread(vector<Move*> &moves, Board* b, int starting_depth) {
+    double alpha;
+    if (moves.size() > 0)
+    {
+        AlphaBetaSort(moves, b, side, true);
+        Board* b_copy = b->copy();
+        b_copy->doMove(moves[0], side);
+        alpha = AlphaBetaEval(b_copy, starting_depth, numeric_limits<double>::lowest(),
+                              numeric_limits<double>::max(), false);
+        moves[0]->score = alpha;
+    }
+    int nthread = min(NTHREADS, max((int)moves.size() - 1, 0));
+    thread **t = new thread*[nthread];
+    for (int i = 0; i < nthread; ++i)
     {
         t[i] = nullptr;
     }
     queue<int> completed;
-    for (int i = 0; i < NTHREADS; ++i) {
+    for (int i = 0; i < nthread; ++i) {
         completed.push(i);
     }
-
-    board.doMove(opponentsMove, (side == BLACK) ? WHITE : BLACK);
-    Move *possible;
-    Move *best_move = new Move(-1, -1);
-    double best_score = numeric_limits<double>::lowest();
-    for (int i = 0; i < BOARDSIZE * BOARDSIZE; ++i)
+    for (uint i = 1; i < moves.size(); ++i)
     {
-        possible = new Move(i / 8, i % 8);
-        if (board.checkMove(possible, side))
-        {
-            // Wait for and get index of free thread
-            unique_lock<mutex> lk(m_cv);
-            if (completed.empty()) {
-                cv.wait(lk, [&completed]{return !completed.empty();});
-            }
-            int done = completed.front();
-            completed.pop();
-            lk.unlock();
-            if (t[done] != nullptr) {
-                t[done]->join();
-                delete t[done];
-            }
-            Board *b = &board;
-            t[done] = new thread(&Player::AlphaBetaEvalThread, this,
-                           possible,
-                           b, starting_depth, std::numeric_limits<double>::lowest(), 
-                           std::numeric_limits<double>::max(), false,
-                           done, ref(completed),
-                           ref(best_score), best_move);
+        // Wait for and get index of free thread
+        unique_lock<mutex> lk(m_cv);
+
+        if (completed.empty()) {
+            cv.wait(lk, [&completed]{return !completed.empty();});
         }
-        else
-        {
-            delete possible;
+        int done = completed.front();
+        completed.pop();
+        lk.unlock();
+        if (t[done] != nullptr) {
+            t[done]->join();
+            delete t[done];
         }
+        t[done] = new thread(&Player::AlphaBetaEvalThread, this,
+                       moves[i],
+                       b, starting_depth, alpha,
+                          std::numeric_limits<double>::max(), false,
+                       done, ref(completed));
     }
 
-    for (int i = 0; i < NTHREADS; ++i) {
+    
+    for (int i = 0; i < nthread; ++i) {
         if (t[i] != nullptr) {
             t[i]->join();
             delete t[i];
         }
     }
-    delete[] t;
 
-    // delete everything
-    if (best_move->getX() == -1)
-    {
-        return nullptr;
-    }
-    board.doMove(best_move, side);
-    return best_move;
+    delete[] t;
+    sort(moves.begin(), moves.end(), MoveComp<Move>);
 }
 
 void Player::AlphaBetaEvalThread(Move *possible_move,
                             Board *b, int depth, double alpha, double beta, bool maximizing,
-                            int id, queue<int> &completed,
-                            double &best_score, Move *best_move) {
+                            int id, queue<int> &completed) {
     // Prepare for and do AlphaBetaEval
     Board *board_copy = b->copy();
     board_copy->doMove(possible_move, side);
-    double score = AlphaBetaEval(board_copy, depth, alpha, beta, maximizing);
+    possible_move->score = AlphaBetaEval(board_copy, depth, alpha, beta, maximizing);
     delete board_copy;
-    // Set best score
-    m_best.lock();
-    if (score >= best_score) {
-        *best_move = *possible_move;
-        delete possible_move;
-        best_score = score;
-    }
-    else {
-        delete possible_move;
-    }
-    m_best.unlock();
     
     // Notify parent thread that evaluation complete
     m_cv.lock();
@@ -260,7 +329,7 @@ void Player::AlphaBetaEvalThread(Move *possible_move,
 
 double Player::CacheEval(Board *b, int depth, double alpha, double beta, bool maximizing)
 {
-    if (depth < 2)
+    if (depth < 3)
     {
         return AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
     }
@@ -313,7 +382,7 @@ double Player::CacheEval(Board *b, int depth, double alpha, double beta, bool ma
     }
     else
     {
-        if (cached_depth < depth)
+        if (cached_depth != depth)
         {
             value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
             m_cache.lock();
@@ -364,54 +433,51 @@ double Player::AlphaBetaEval(Board *b, int depth, double alpha, double beta, boo
         }
         return b->score(side);
     }
+    if (b->isDone())
+    {
+        if (testingMinimax)
+        {
+            return b->naiveScore(side);
+        }
+        else if (b->naiveScore(side) > 0)
+        {
+            return std::numeric_limits<double>::max();
+        }
+        else
+        {
+            return std::numeric_limits<double>::lowest();
+        }
+    }
     double value = 0;
     double best_value;
-    Move *possible;
     bool done = true;
     bool played = false;
     Side other = (side == BLACK) ? WHITE : BLACK;
     if (maximizing)
     {
         best_value = std::numeric_limits<double>::lowest();
-        for (int i = 0; i < BOARDSIZE * BOARDSIZE; ++i)
+        vector<Move*> moves = b->generateMoves(side);
+        if (depth > 3)
         {
-            possible = new Move(i / 8, i % 8);
-            if (b->checkMove(possible, side))
-            {
-                done = false;
-                played = true;
-                b->doMove(possible, side);
-                // value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
-                value = CacheEval(b, depth, alpha, beta, maximizing);
-                best_value = max(best_value, value);
-                alpha = max(alpha, best_value);
-                b->undoMove(possible);
-                if (beta < alpha)
-                {
-                    delete possible;
-                    break;
-                }
-            }
-            if (b->checkMove(possible, other))
-            {
-                done = false;
-            }
-            delete possible;
+            AlphaBetaSort(moves, b, side, true);
         }
-        if (done)
+        for (uint i = 0; i < moves.size(); ++i)
         {
-            if (testingMinimax)
+            done = false;
+            played = true;
+            Board *new_board = b->copy();
+            new_board->doMove(moves[i], side);
+            // value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
+            value = CacheEval(new_board, depth, alpha, beta, maximizing);
+            delete new_board;
+            best_value = max(best_value, value);
+            alpha = max(alpha, best_value);
+            if (beta < alpha)
             {
-                return b->naiveScore(side);
+                delete moves[i];
+                break;
             }
-            else if (b->naiveScore(side) >= 0)
-            {
-                return std::numeric_limits<double>::max();
-            }
-            else
-            {
-                return std::numeric_limits<double>::lowest();
-            }
+            delete moves[i];
         }
         if (played)
         {
@@ -426,30 +492,32 @@ double Player::AlphaBetaEval(Board *b, int depth, double alpha, double beta, boo
     else
     {
         best_value = std::numeric_limits<double>::max();
-        for (int i = 0; i < BOARDSIZE * BOARDSIZE; ++i)
+        vector<Move*> moves = b->generateMoves(other);
+        if (depth > 3)
         {
-            possible = new Move(i / 8, i % 8);
-            if (b->checkMove(possible, other))
+           AlphaBetaSort(moves, b, other, false);
+        }
+        for (uint i = 0; i < moves.size(); ++i)
+        {
+            played = true;
+            done = false;
+            Board *new_board = b->copy();
+            new_board->doMove(moves[i], other);
+            // value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
+            value = CacheEval(new_board, depth, alpha, beta, maximizing);
+            delete new_board;
+            best_value = min(best_value, value);
+            beta = min(beta, best_value);
+            if (beta < alpha)
             {
-                played = true;
-                done = false;
-                b->doMove(possible, other);
-                // value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
-                value = CacheEval(b, depth, alpha, beta, maximizing);
-                best_value = min(best_value, value);
-                beta = min(beta, best_value);
-                b->undoMove(possible);
-                if (beta < alpha)
-                {
-                    delete possible;
-                    break;
-                }
+                delete moves[i];
+                break;
             }
-            if (b->checkMove(possible, side))
+            if (b->checkMove(moves[i], side))
             {
                 done = false;
             }
-            delete possible;
+            delete moves[i];
         }
         if (done)
         {
@@ -457,7 +525,7 @@ double Player::AlphaBetaEval(Board *b, int depth, double alpha, double beta, boo
             {
                 return b->naiveScore(side);
             }
-            else if (b->naiveScore(side) >= 0)
+            else if (b->naiveScore(side) > 0)
             {
                 return std::numeric_limits<double>::max();
             }

@@ -19,12 +19,17 @@ int main(int argc, char *argv[]) {
         ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
         ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '
     };
-    Board *board = new Board();
-    // board->setBoard(boardData);
+    //Board *board = new Board();
+    //board->setBoard(boardData);
 
     // Initialize player as the white player, and set testing_minimax flag.
-    Player *player = new Player(WHITE);
-    Player *other = new Player(BLACK);
+    Player *player = new Player(BLACK);
+    player->GenerateOpeningBook(&player->board, 5, 3);
+    delete player;
+    player = new Player(WHITE);
+    player->GenerateOpeningBook(&player->board, 5, 3);
+
+    return 0;
     // player->testingMinimax = true;
 
 
@@ -32,36 +37,36 @@ int main(int argc, char *argv[]) {
      * TODO: Write code to set your player's internal board state to the
      * example state.
      */
-    Board *temp1, *temp2;
-    temp1 = board->copy();
-    temp2 = board->copy();
-    player->board = *temp1;
-    other->board = *temp2;
+//    Board *temp1, *temp2;
+//    temp1 = board->copy();
+//    temp2 = board->copy();
+//    player->board = *temp1;
+//    other->board = *temp2;
 
-    // Get player's move and check if it's right.
-    Move *p_move = nullptr;
-    Move *o_move = nullptr;
-    for (int i = 0; i < 2; ++i)
-    {
-        cerr << i << endl;
-        if (p_move != nullptr)
-            delete p_move;
-        p_move = player->doMove(o_move, 0);
-        if (o_move != nullptr)
-            delete o_move;
-        o_move = other->doMove(p_move, 0);
-    }
-    
-    if (p_move != nullptr)
-        delete p_move;
-    if (o_move != nullptr)
-        delete o_move;
-    delete board;
-    delete player;
-    delete other;
-    delete temp1;
-    delete temp2;
-    return 0;
+//    // Get player's move and check if it's right.
+//    Move *p_move = nullptr;
+//    Move *o_move = nullptr;
+//    for (int i = 0; i < 3; ++i)
+//    {
+//        cerr << i << endl;
+//        if (p_move != nullptr)
+//            delete p_move;
+//        p_move = player->doMove(o_move, 0);
+//        if (o_move != nullptr)
+//            delete o_move;
+//        o_move = other->doMove(p_move, 0);
+//    }
+//    
+//    if (p_move != nullptr)
+//        delete p_move;
+//    if (o_move != nullptr)
+//        delete o_move;
+//    delete board;
+//    delete player;
+//    delete other;
+//    delete temp1;
+//    delete temp2;
+//    return 0;
         
         
 //

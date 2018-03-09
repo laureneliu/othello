@@ -7,6 +7,7 @@
 #include "common.hpp"
 #include "board.hpp"
 #include <queue>
+#include <vector>
 #include <mutex>
 #include <condition_variable>
 #include <unordered_map>
@@ -40,12 +41,13 @@ struct DLlist
 
 
 
-
 class Player {
 private:
-    mutex m_cv, m_best, m_cache;
+    mutex m_cv, m_cache, m_ab;
     condition_variable cv;
     unordered_map<string, Datum*> trans_table;
+    unordered_map<string, int> opening_book;
+    bool use_obook;
     DLlist *cache;
 
 public:
@@ -53,19 +55,19 @@ public:
     ~Player();
 
     Move *doMove(Move *opponentsMove, int msLeft);
-    Move *doNaiveMove(Move *opponentsMove);
-    Move *AlphaBetaMove(Move *opponentsMove, int msLeft);
-    Move *AlphaBetaMoveMultithread(Move *opponentsMove, int msleft);
+    void GenerateMoves();
+    void GenerateOpeningBook(Board *b, int depth, int moves);
+    void AlphaBetaMoveMultithread(vector<Move*> &moves, Board* b, int starting_depth);
     void AlphaBetaEvalThread(Move *possible_move,
         Board *b, int depth, double alpha, double beta, bool maximizing,
-        int id, queue<int> &completed,
-        double &best_score, Move *best_move);
+        int id, queue<int> &completed);
+    double HeuristicAlpha(Board *b, int depth, bool maximizing);
+    void AlphaBetaSort(vector<Move*> &moves, Board *b, Side side, bool maximizing);
     double AlphaBetaEval(Board *b, int depth, double alpha, double beta, bool maximizing);
     double CacheEval(Board *b, int depth, double alpha, double beta, bool maximizing);
 
     // Flag to tell if the player is running within the test_minimax context
     bool testingMinimax;
-    int starting_depth;
     Side side;
     Board board;
     

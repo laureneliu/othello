@@ -61,7 +61,18 @@ bool Board::onBoard(int x, int y) {
  * if neither side has a legal move.
  */
 bool Board::isDone() {
-    return !(hasMoves(BLACK) || hasMoves(WHITE));
+    if (count() == 64)
+    {
+        return true;
+    }
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            Move move(i, j);
+            if (checkMove(&move, WHITE)) return false;
+            if (checkMove(&move, BLACK)) return false;
+        }
+    }
+    return true;
 }
 
 /*
@@ -111,15 +122,14 @@ bool Board::checkMove(Move *m, Side side) {
     return false;
 }
 
+
+
 /*
  * Modifies the board to reflect the specified move.
  */
 void Board::doMove(Move *m, Side side) {
     // A nullptr move means pass.
     if (m == nullptr) return;
-
-    // Ignore if move is invalid.
-    if (!checkMove(m, side)) return;
 
     int X = m->getX();
     int Y = m->getY();
@@ -142,8 +152,6 @@ void Board::doMove(Move *m, Side side) {
                 y += dy;
                 while (onBoard(x, y) && get(other, x, y)) {
                     set(side, x, y);
-                    m->flipped[m->num_flipped] = x + 8 * y;
-                    m->num_flipped += 1;
                     x += dx;
                     y += dy;
                 }
@@ -153,19 +161,18 @@ void Board::doMove(Move *m, Side side) {
     set(side, X, Y);
 }
 
-void Board::undoMove(Move *m) {
-    taken.set(m->getX() + m->getY() * 8, 0);
-    black.set(m->getX() + m->getY() * 8, 0);
-    for (int i = 0; i < m->num_flipped; ++i) {
-        black.flip(m->flipped[i]);
-    }
-}
-
 /*
  * Current count of given side's stones.
  */
 int Board::count(Side side) {
     return (side == BLACK) ? countBlack() : countWhite();
+}
+/**
+ * number of pieces on the board
+ */
+int Board::count()
+{
+    return taken.count();
 }
 
 /*
@@ -203,9 +210,31 @@ int Board::naiveScore(Side side)
 {
     return count(side) - count((side == BLACK) ? WHITE : BLACK);
 }
+
+vector<Move *> Board::generateMoves(Side side)
+{
+    vector<Move *> moves = vector<Move*>();
+    Move* possible;
+    for (int i = 0; i < BOARDSIZE; ++i)
+    {
+        for (int j = 0; j < BOARDSIZE; ++j)
+        {
+            possible = new Move(i, j);
+            if (checkMove(possible, side))
+            {
+                moves.push_back(possible);
+            }
+            else
+            {
+                delete possible;
+            }
+        }
+    }
+    return moves;
+}
+
 /**
- * returns score of board. Black maximizes and white minimizes
- * TODO
+ * returns score of board
  */
 double Board::score(Side side)
 {
