@@ -24,11 +24,11 @@ int main(int argc, char *argv[]) {
 
     // Initialize player as the white player, and set testing_minimax flag.
     Player *player = new Player(BLACK);
-    player->GenerateOpeningBook(&player->board, 5, 3);
+    player->GenerateOpeningBook(&player->board, 10, 4);
     delete player;
     player = new Player(WHITE);
-    player->GenerateOpeningBook(&player->board, 5, 3);
-
+    player->GenerateOpeningBook(&player->board, 10, 4);
+    delete player;
     return 0;
     // player->testingMinimax = true;
 

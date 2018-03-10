@@ -60,6 +60,7 @@ Player::Player(Side temp) {
     }
     else
     {
+        return;
         string board;
         int x;
         ifstream myfile ("Team 436_WHITE_OPENING_BOOK.txt");
@@ -138,7 +139,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     auto t1 = Time::now();
     fsec fs = t1 - t0;
     ms d = std::chrono::duration_cast<ms>(fs);
-    int depth = 1;
+    int depth = 2;
     while (d.count() < msLeft / (64 - board.count() / 2))
     {
         depth += 1;
@@ -146,14 +147,13 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
         if (moves[0]->score == std::numeric_limits<double>::max() ||
             depth > (64 - board.count()))
         {
-            cerr << moves[0]->score << endl;
             break;
         }
         auto t1 = Time::now();
         fs = t1 - t0;
         d = std::chrono::duration_cast<ms>(fs);
     }
-    cerr << side << "Depth reached " << depth <<  ". Time spent " << d.count() << endl;
+    cerr << "Depth reached " << depth <<  ". Time spent " << d.count() << endl;
     board.doMove(moves[0], side);
     for (uint i = 1; i < moves.size(); ++i)
     {
@@ -162,6 +162,9 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     return moves[0];
 }
 
+/*
+ *Rewrite...
+ */
 void Player::GenerateOpeningBook(Board *b, int depth, int num_moves)
 {
     // file thing
@@ -172,18 +175,16 @@ void Player::GenerateOpeningBook(Board *b, int depth, int num_moves)
     if (side == BLACK)
     {
         myfile.open ("Team 436_BLACK_OPENING_BOOK.txt", std::fstream::out | std::fstream::app);
-        board = (*b);
-        vector<Move*> moves= board.generateMoves(BLACK);
-        AlphaBetaMoveMultithread(moves, &board, depth);
+        vector<Move*> moves= b->generateMoves(BLACK);
+        AlphaBetaMoveMultithread(moves, b, 3);
+        AlphaBetaMoveMultithread(moves, b, depth);
         myfile << b->toString() << ' ' << moves[0]->getX() + (8 * moves[0]->getY()) << endl;
         b->doMove(moves[0], side);
         myfile.close();
-
         for (uint i = 0; i < moves.size(); ++i)
         {
             delete moves[i];
         }
-        
         Board *b2 = b->copy();
         for (int j = 0; j < BOARDSIZE * BOARDSIZE; j++)
         {
@@ -194,12 +195,14 @@ void Player::GenerateOpeningBook(Board *b, int depth, int num_moves)
                 b_copy->doMove(possible, WHITE);
                 GenerateOpeningBook(b_copy, depth, num_moves - 1);
                 delete possible;
+                delete b_copy;
             }
             else
             {
                 delete possible;
             }
         }
+        delete b2;
     }
     else
     {
@@ -212,9 +215,9 @@ void Player::GenerateOpeningBook(Board *b, int depth, int num_moves)
                 Board *b_copy = b2->copy();
                 b_copy->doMove(possible, BLACK);
                 myfile.open ("Team 436_WHITE_OPENING_BOOK.txt", std::fstream::out | std::fstream::app);
-                board = *b_copy;
-                vector<Move*> moves= b_copy->generateMoves(WHITE);
-                AlphaBetaMoveMultithread(moves, &board, depth);
+                vector<Move*> moves = b_copy->generateMoves(WHITE);
+                AlphaBetaMoveMultithread(moves, b, 3);
+                AlphaBetaMoveMultithread(moves, b_copy, depth);
                 myfile << b_copy->toString() << ' ' << moves[0]->getX() + (8 * moves[0]->getY()) << endl;
                 myfile.close();
                 b_copy->doMove(moves[0], side);
@@ -231,6 +234,7 @@ void Player::GenerateOpeningBook(Board *b, int depth, int num_moves)
                 delete possible;
             }
         }
+        delete b2;
     }
 }
 
@@ -242,6 +246,7 @@ void Player::AlphaBetaSort(vector<Move*> &moves, Board *b, Side side, bool maxim
         b_copy->doMove(moves[i], side);
         moves[i]->score = AlphaBetaEval(b_copy, 2, std::numeric_limits<double>::lowest(),
                             std::numeric_limits<double>::max(), !maximizing);
+        delete b_copy;
     }
     if (maximizing)
     {
@@ -258,12 +263,12 @@ void Player::AlphaBetaMoveMultithread(vector<Move*> &moves, Board* b, int starti
     double alpha;
     if (moves.size() > 0)
     {
-        AlphaBetaSort(moves, b, side, true);
         Board* b_copy = b->copy();
         b_copy->doMove(moves[0], side);
         alpha = AlphaBetaEval(b_copy, starting_depth, numeric_limits<double>::lowest(),
                               numeric_limits<double>::max(), false);
         moves[0]->score = alpha;
+        delete b_copy;
     }
     int nthread = min(NTHREADS, max((int)moves.size() - 1, 0));
     thread **t = new thread*[nthread];
@@ -382,7 +387,7 @@ double Player::CacheEval(Board *b, int depth, double alpha, double beta, bool ma
     }
     else
     {
-        if (cached_depth != depth)
+        if (cached_depth < depth)
         {
             value = AlphaBetaEval(b, depth - 1, alpha, beta, !maximizing);
             m_cache.lock();
@@ -427,19 +432,11 @@ double Player::AlphaBetaEval(Board *b, int depth, double alpha, double beta, boo
 {
     if (depth == 0)
     {
-        if (testingMinimax)
-        {
-            return b->naiveScore(side);
-        }
         return b->score(side);
     }
     if (b->isDone())
     {
-        if (testingMinimax)
-        {
-            return b->naiveScore(side);
-        }
-        else if (b->naiveScore(side) > 0)
+        if (b->naiveScore(side) > 0)
         {
             return std::numeric_limits<double>::max();
         }
@@ -474,9 +471,11 @@ double Player::AlphaBetaEval(Board *b, int depth, double alpha, double beta, boo
             alpha = max(alpha, best_value);
             if (beta < alpha)
             {
-                delete moves[i];
                 break;
             }
+        }
+        for (uint i = 0; i < moves.size(); ++i)
+        {
             delete moves[i];
         }
         if (played)
@@ -510,13 +509,15 @@ double Player::AlphaBetaEval(Board *b, int depth, double alpha, double beta, boo
             beta = min(beta, best_value);
             if (beta < alpha)
             {
-                delete moves[i];
                 break;
             }
             if (b->checkMove(moves[i], side))
             {
                 done = false;
             }
+        }
+        for (uint i = 0; i < moves.size(); ++i)
+        {
             delete moves[i];
         }
         if (done)
