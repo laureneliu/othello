@@ -480,7 +480,7 @@ double Board::score(Side side)
     
     return piece_diff_val / 10 + 
            (mob_diff_val + 2 * move_diff_val) + 
-           3 * cc_val + 10 * corner_diff_val;
+           3 * cc_val + 5 * corner_diff_val;
 }
 
 /**

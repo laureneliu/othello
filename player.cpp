@@ -13,9 +13,10 @@
 
 #define BOARDSIZE 8
 #define NTHREADS 6
-#define MAX_TRANSPOSITION_SIZE 50000
+#define MAX_TRANSPOSITION_SIZE 500000
 #define OPENING false
 #define PRUNING_THRESHOLD 5
+#define DEBUG false
 
 
     
@@ -142,9 +143,11 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     ms d = std::chrono::duration_cast<ms>(fs);
     int depth = 2;
     // redo this formula
-    while (d.count() < msLeft / (max(54 - board.count(), 2) * max(1, (int) pow(2, depth - 10))))
+    while (d.count() < msLeft / ((max(50 - board.count(), 1) * pow(1.1, depth))))
     {
         ++depth;
+        if (DEBUG)
+            cerr << "Searching depth " << depth << ". Time is " << d.count() << ". Bound was " << msLeft / ((max(50 - board.count(), 1) * pow(1.1, depth - 1))) << endl;
         AlphaBetaMoveMultithread(moves, &board, depth);
         if (moves[0]->score == std::numeric_limits<double>::max() ||
             depth > (64 - board.count()))
@@ -155,7 +158,19 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
         fs = t1 - t0;
         d = std::chrono::duration_cast<ms>(fs);
     }
-    cerr << "Depth reached " << depth <<  ". Time spent " << d.count() << " Score " << moves[0]->score << endl;
+    if (DEBUG)
+    {
+        if (side == BLACK)
+        {
+            cerr << "BLACK";
+        }
+        else
+        {
+            cerr << "WHITE";
+        }
+        cerr << " " << board.count() << " ";
+        cerr << "Depth reached " << depth <<  ". Time spent " << d.count() << ". Time left " << msLeft - d.count() << ". Score " << moves[0]->score << endl;
+    }
     board.doMove(moves[0], side);
     for (uint i = 1; i < moves.size(); ++i)
     {
