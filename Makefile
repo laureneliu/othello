@@ -1,7 +1,7 @@
 CC          = g++
 CFLAGS      = -Wall -pedantic -ggdb --std=c++11 -pthread -O3
 OBJS        = player.o board.o
-PLAYERNAME  = meow_new
+PLAYERNAME  = 436
 
 all: $(PLAYERNAME) testgame
 
