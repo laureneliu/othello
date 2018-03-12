@@ -298,12 +298,12 @@ double Board::score(Side side)
     {
         if (side == BLACK)
         {
-            mob_diff_val = 100 * (black_move_score - white_move_score) 
+            mob_diff_val = 10 * (black_move_score - white_move_score) 
                                       / (black_move_score + white_move_score);
         }
         else
         {
-            mob_diff_val = 100 * (white_move_score - black_move_score) 
+            mob_diff_val = 10 * (white_move_score - black_move_score) 
                                       / (black_move_score + white_move_score);
         }
     }
@@ -315,12 +315,12 @@ double Board::score(Side side)
     double piece_diff_val;
     if (side == BLACK)
     {
-        piece_diff_val = 100 * (double) (count(BLACK) - count(WHITE))
+        piece_diff_val = 10 * (double) (count(BLACK) - count(WHITE))
                                     / (double) (count(BLACK) + count(WHITE));
     }
     else
     {
-        piece_diff_val = 100 * (double) (count(WHITE) - count(BLACK))
+        piece_diff_val = 10 * (double) (count(WHITE) - count(BLACK))
                                     / (double) (count(BLACK) + count(WHITE));
     }
     
@@ -449,13 +449,11 @@ double Board::score(Side side)
     {
         if (side == BLACK)
         {
-            cc_val = 100 * (white_corner_closeness - black_corner_closeness)
-                         / (black_corner_closeness + white_corner_closeness);
+            cc_val = 12.5 * (white_corner_closeness - black_corner_closeness);
         }
         else
         {
-            cc_val = 100 * (black_corner_closeness - white_corner_closeness)
-                         / (black_corner_closeness + white_corner_closeness);
+            cc_val = 12.5 * (black_corner_closeness - white_corner_closeness);
         }
     }
     else
@@ -468,13 +466,11 @@ double Board::score(Side side)
     {
         if (side == BLACK)
         {
-            corner_diff_val = 100 * (black_corners - white_corners) 
-                                         / (black_corners + white_corners);
+            corner_diff_val = 100 * (black_corners - white_corners);
         }
         else
         {
-            corner_diff_val = 100 * (white_corners - black_corners) 
-                                         / (black_corners + white_corners);
+            corner_diff_val = 100 * (white_corners - black_corners);
         }
     }
     else
@@ -483,8 +479,8 @@ double Board::score(Side side)
     }
     
     return piece_diff_val / 10 + 
-           (mob_diff_val + move_diff_val) + 
-           2 * cc_val + 10 * corner_diff_val;
+           (mob_diff_val + 2 * move_diff_val) + 
+           3 * cc_val + 10 * corner_diff_val;
 }
 
 /**

@@ -19,15 +19,15 @@ int main(int argc, char *argv[]) {
         ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
         ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '
     };
-    //Board *board = new Board();
+    Board *board = new Board();
     //board->setBoard(boardData);
 
     // Initialize player as the white player, and set testing_minimax flag.
     Player *player = new Player(BLACK);
-    player->GenerateOpeningBook(&player->board, 10, 4);
+    player->GenerateOpeningBook(&player->board, 12, 5);
     delete player;
     player = new Player(WHITE);
-    player->GenerateOpeningBook(&player->board, 10, 4);
+    player->GenerateOpeningBook(&player->board, 12, 5);
     delete player;
     return 0;
     // player->testingMinimax = true;
@@ -37,24 +37,25 @@ int main(int argc, char *argv[]) {
      * TODO: Write code to set your player's internal board state to the
      * example state.
      */
+//    Player *player = new Player(BLACK);
+//    Player *other = new Player(WHITE);
 //    Board *temp1, *temp2;
 //    temp1 = board->copy();
 //    temp2 = board->copy();
 //    player->board = *temp1;
 //    other->board = *temp2;
-
-//    // Get player's move and check if it's right.
+//
 //    Move *p_move = nullptr;
 //    Move *o_move = nullptr;
-//    for (int i = 0; i < 3; ++i)
+//    for (int i = 0; i < 30; ++i)
 //    {
 //        cerr << i << endl;
 //        if (p_move != nullptr)
 //            delete p_move;
-//        p_move = player->doMove(o_move, 0);
+//        p_move = player->doMove(o_move, 5000);
 //        if (o_move != nullptr)
 //            delete o_move;
-//        o_move = other->doMove(p_move, 0);
+//        o_move = other->doMove(p_move, 5000);
 //    }
 //    
 //    if (p_move != nullptr)

@@ -1,7 +1,7 @@
 CC          = g++
-CFLAGS      = -Wall -pedantic -ggdb --std=c++11 -pthread
+CFLAGS      = -Wall -pedantic -ggdb --std=c++11 -pthread -O3
 OBJS        = player.o board.o
-PLAYERNAME  = meow
+PLAYERNAME  = meow_new
 
 all: $(PLAYERNAME) testgame
 
@@ -12,7 +12,7 @@ testgame: testgame.o
 	$(CC) -o $@ $^ -pthread
 
 testminimax: $(OBJS) testminimax.o
-	$(CC) -pthread -o $@ $^
+	$(CC) -pthread -o $@ $^ -O3
 
 %.o: %.cpp
 	$(CC) -c $(CFLAGS) -x c++ $< -o $@

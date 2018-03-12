@@ -43,8 +43,11 @@ struct DLlist
 
 class Player {
 private:
-    mutex m_cv, m_cache, m_ab;
+    // when multithreading, be sure to use protection
+    mutex m_cv, m_cache;
     condition_variable cv;
+    
+    // yay for not recomputing thigns
     unordered_map<string, Datum*> trans_table;
     unordered_map<string, int> opening_book;
     bool use_obook;
@@ -55,15 +58,29 @@ public:
     ~Player();
 
     Move *doMove(Move *opponentsMove, int msLeft);
-    void GenerateMoves();
     void GenerateOpeningBook(Board *b, int depth, int moves);
+    
+    // fancy multithreading things
+    void AlphaBetaRecursiveMultithreadInitial(Board *b, vector<Move*> moves, int depth);
+    double AlphaBetaRecursiveMultithread(Board *b, int depth, double alpha, double beta, bool maximizing);
+    double AlphaBetaRecursiveMultithread(Board *b, vector<Move*> moves, int depth, double alpha, double beta, bool maximizing);
+    double CachedAlphaBetaRecursiveMultithread(Board *b, int depth, double alpha, double beta, bool maximizing);
+    
+    // normal multithreading things
+    void AlphaBetaRecursiveMultithreadEval(Move *possible, Board *b, int depth, 
+        double alpha, double beta, bool maximizing, int id, queue<int> &completed);
     void AlphaBetaMoveMultithread(vector<Move*> &moves, Board* b, int starting_depth);
     void AlphaBetaEvalThread(Move *possible_move,
         Board *b, int depth, double alpha, double beta, bool maximizing,
         int id, queue<int> &completed);
-    double HeuristicAlpha(Board *b, int depth, bool maximizing);
-    void AlphaBetaSort(vector<Move*> &moves, Board *b, Side side, bool maximizing);
+    
+    // sorting for efficiency TM
+    void AlphaBetaSort(vector<Move*> &moves, Board *b, int depth, Side side, bool maximizing);
+    
+    // normal eval
     double AlphaBetaEval(Board *b, int depth, double alpha, double beta, bool maximizing);
+    
+    // using the cache to avoid recomputing things
     double CacheEval(Board *b, int depth, double alpha, double beta, bool maximizing);
 
     // Flag to tell if the player is running within the test_minimax context
@@ -71,6 +88,7 @@ public:
     Side side;
     Board board;
     
+    // a doubly linked list for the cache
     /**
      * inserts a node with value key at the front of the list
      * @param list the list to be inserted in
