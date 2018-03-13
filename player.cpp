@@ -14,7 +14,7 @@
 #define BOARDSIZE 8
 #define NTHREADS 6
 #define MAX_TRANSPOSITION_SIZE 500000
-#define OPENING false
+#define OPENING true
 #define PRUNING_THRESHOLD 5
 #define DEBUG false
 
@@ -62,7 +62,6 @@ Player::Player(Side temp) {
     }
     else
     {
-        return;
         string board;
         int x;
         ifstream myfile ("Team 436_WHITE_OPENING_BOOK.txt");
