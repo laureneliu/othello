@@ -13,7 +13,7 @@
 
 #define BOARDSIZE 8
 #define NTHREADS 6
-#define MAX_TRANSPOSITION_SIZE 500000
+#define MAX_TRANSPOSITION_SIZE 50000
 #define OPENING true
 #define PRUNING_THRESHOLD 5
 #define DEBUG false
