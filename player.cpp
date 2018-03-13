@@ -117,7 +117,10 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
             int m = opening_book[board_string];
             Move *opening_move = new Move(m % 8, m / 8);
             board.doMove(opening_move, side);
-            cerr << "using book" << endl;
+            if (DEBUG)
+            {
+                cerr << "using book" << endl;
+            }
             return opening_move;
         }
         else
