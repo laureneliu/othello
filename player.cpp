@@ -145,11 +145,11 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     ms d = std::chrono::duration_cast<ms>(fs);
     int depth = 2;
     // redo this formula
-    while (d.count() < msLeft / ((max(50 - board.count(), 1) * pow(1.1, depth))))
+    while (d.count() < msLeft / ((max(60 - board.count(), 1) * pow(1.1, depth))))
     {
         ++depth;
         if (DEBUG)
-            cerr << "Searching depth " << depth << ". Time is " << d.count() << ". Bound was " << msLeft / ((max(50 - board.count(), 1) * pow(1.1, depth - 1))) << endl;
+            cerr << "Searching depth " << depth << ". Time is " << d.count() << ". Bound was " << msLeft / ((max(60 - board.count(), 1) * pow(1.1, depth - 1))) << endl;
         AlphaBetaMoveMultithread(moves, &board, depth);
         if (moves[0]->score == std::numeric_limits<double>::max() ||
             depth > (64 - board.count()))
